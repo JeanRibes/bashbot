@@ -17,6 +17,7 @@ RUN cd bashbot && go build  -o main main.go
 # j'utilise ubuntu et pas alpine pour avoir plus de commande shell par défaut
 RUN apt-get install ca-certificates && update-ca-certificates
 
+RUN groupadd --gid 1000 bots && useradd -m --gid 1000 --uid 1000 bashbot
 
 ENV BOT_TOKEN "very secret"
 CMD ["/go/src/bashbot/main"]

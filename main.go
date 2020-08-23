@@ -41,9 +41,35 @@ func main() {
 	println(m.Content)*/
 
 	// In this example, we only care about receiving message events.
-	sess.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsGuildMessages)
+	sess.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsDirectMessages | discordgo.IntentsGuildMessages | discordgo.IntentsGuilds | discordgo.IntentsGuildMessages)
 	// discordgo.IntentsDirectMessages pour les DM ?
+	sess.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+		println("Discord prêt")
+		time.Sleep(10 * time.Second) //on reçoit GuildCreate au lancement du bot ... si on attent un peu ça évite de spammer
+		// sutour en cas de bootloop du container
+		println("Écoute de GuildCreate")
+		sess.AddHandler(func(s *discordgo.Session, e *discordgo.GuildCreate) {
+			println("guildCreate event" + e.Description)
+			fmt.Printf("On a rejoint %s %v\n", e.Guild.Name)
+			for _, channel := range e.Channels {
+				if channel.Type == discordgo.ChannelTypeGuildText {
+					_, er := s.ChannelMessageSend(channel.ID, "Bonjour ! Je suis BashBot, j'exécute les commandes shell que vous donnez"+
+						"\nTapez ``$ echo 'Hello World'`` par exemple :)")
+					if er == nil {
+						return
+					} else {
+						println(er)
+					}
+				}
+			}
+		})
+	})
 	sess.AddHandler(messageUpdate)
+
+	sess.AddHandler(func(s *discordgo.Session, e *discordgo.GuildDelete) {
+		println("guild delete")
+		fmt.Printf("on s'est fait jeter de #%s :(\n", e.Guild.ID)
+	})
 	err = sess.Open()
 	if err != nil {
 		fmt.Println("error opening connection,", err)
@@ -150,4 +176,18 @@ func amImentionned(s *discordgo.Session, m *discordgo.Message) bool {
 		}
 	}
 	return false
+}
+
+func guildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
+	println("guild create")
+	if event.Guild.Unavailable {
+		return
+	}
+
+	for _, channel := range event.Guild.Channels {
+		if channel.ID == event.Guild.ID {
+			print(channel.Name)
+		}
+	}
+	println(" guild create")
 }
