@@ -19,4 +19,4 @@ RUN apt-get install ca-certificates && update-ca-certificates
 
 
 ENV BOT_TOKEN "very secret"
-CMD ["/main"]
+CMD ["/go/src/bashbot/main"]
