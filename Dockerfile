@@ -15,7 +15,7 @@ COPY main.go bashbot
 #RUN CGO_ENABLED=0 GOOS=linux cd bashbot && go build -a -installsuffix cgo -o main main.go
 RUN cd bashbot && go build  -o main main.go
 # j'utilise ubuntu et pas alpine pour avoir plus de commande shell par défaut
-RUN apt-get install ca-certificates
+RUN apt-get install ca-certificates && update-ca-certificates
 
 
 ENV BOT_TOKEN "very secret"
