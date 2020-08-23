@@ -12,11 +12,10 @@ RUN cd bashbot && go mod tidy
 COPY main.go bashbot
 
 # build Go
-RUN CGO_ENABLED=0 GOOS=linux cd bashbot && go build -a -installsuffix cgo -o main main.go
-
+#RUN CGO_ENABLED=0 GOOS=linux cd bashbot && go build -a -installsuffix cgo -o main main.go
+RUN cd bashbot && go build  -o main main.go
 # j'utilise ubuntu et pas alpine pour avoir plus de commande shell par défaut
-FROM ubuntu:bionic
-COPY --from=builder /go/src/bashbot/main .
+RUN apt-get install ca-certificates
 
 
 ENV BOT_TOKEN "very secret"
