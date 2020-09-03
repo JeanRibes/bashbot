@@ -17,6 +17,35 @@ var commandResultIDs map[string]string
 
 var pwdChannels map[string]string
 
+var emojis = map[int32]string{
+	'a': "🇦",
+	'b': "🇧",
+	'c': "🇨",
+	'd': "🇩",
+	'e': "🇪",
+	'f': "🇫",
+	'g': "🇬",
+	'h': "🇭",
+	'i': "🇮",
+	'j': "🇯",
+	'k': "🇰",
+	'l': "🇱",
+	'm': "🇲",
+	'n': "🇳",
+	'o': "🇴",
+	'p': "🇵",
+	'q': "🇶",
+	'r': "🇷",
+	's': "🇸",
+	't': "🇹",
+	'u': "🇺",
+	'v': "🇻",
+	'w': "🇼",
+	'x': "🇽",
+	'y': "🇾",
+	'z': "🇿",
+}
+
 func init() {
 	commandResultIDs = make(map[string]string)
 	pwdChannels = make(map[string]string)
@@ -41,7 +70,7 @@ func main() {
 	println(m.Content)*/
 
 	// In this example, we only care about receiving message events.
-	sess.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsDirectMessages | discordgo.IntentsGuildMessages | discordgo.IntentsGuilds | discordgo.IntentsGuildMessages)
+	sess.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsDirectMessages | discordgo.IntentsGuildMessages | discordgo.IntentsGuilds | discordgo.IntentsDirectMessageReactions | discordgo.IntentsGuildMessageReactions)
 	// discordgo.IntentsDirectMessages pour les DM ?
 	sess.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		println("Discord prêt")
@@ -70,6 +99,11 @@ func main() {
 		println("guild delete")
 		fmt.Printf("on s'est fait jeter de #%s :(\n", e.Guild.ID)
 	})
+
+	sess.AddHandler(func(s *discordgo.Session, e *discordgo.MessageReactionAdd) {
+		fmt.Printf("nom: %s id: %s", e.Emoji.Name, e.Emoji.ID)
+	})
+
 	err = sess.Open()
 	if err != nil {
 		fmt.Println("error opening connection,", err)
@@ -120,6 +154,41 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			"J'exécute les commandes qu'on me donne, préfixées de '$ ' \n"+
 			"Attention: les variables d'environnement ne persistent pas entre les messages\n"+
 			"Exemple: ``$ echo 'hello world'``")
+		return
+	}
+	fmt.Printf("message #%s: %s", m.ID, m.Content)
+
+	if m.Content[:3] == "_t " { //réagit avec les emojis du message
+		for _, lettre := range m.Content[3:] {
+			emoji, ok := emojis[lettre]
+			if ok {
+				s.MessageReactionAdd(m.ChannelID, m.ID, emoji)
+				time.Sleep(time.Millisecond * 100)
+			}
+		}
+		return
+	}
+
+	if m.Content[:3] == "_e " {
+		p := strings.Split(m.Content, " ")
+		var msgId string
+		chanId := m.ChannelID
+		if strings.Contains(p[1], "-") {
+			f := strings.Split(p[1], "-")
+			msgId = f[1]
+			chanId = f[0]
+		} else {
+			msgId = p[1]
+		}
+		texte := p[2]
+
+		for _, lettre := range texte {
+			emoji, ok := emojis[lettre]
+			if ok {
+				println(s.MessageReactionAdd(chanId, msgId, emoji))
+				time.Sleep(time.Millisecond * 100)
+			}
+		}
 		return
 	}
 }
