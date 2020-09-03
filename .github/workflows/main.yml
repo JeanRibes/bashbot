@@ -9,6 +9,6 @@ jobs:
       uses: elgohr/Publish-Docker-Github-Action@master
       with:
         name: JeanRibes/bashbot/bashbot
-        username: ${{ secrets.DOCKER_USERNAME }}
+        username: ${{ github.actor }}
         password: ${{ secrets.DOCKER_PASSWORD }}
         registry: docker.pkg.github.com
