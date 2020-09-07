@@ -52,6 +52,8 @@ func init() {
 }
 func main() {
 	//nouvelle session
+	//println(entireLine("123456789\n123456\n7891654", 20))
+	//os.Exit(0)
 	sess, err := discordgo.New("Bot " + os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
