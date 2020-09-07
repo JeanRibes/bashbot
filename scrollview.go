@@ -68,7 +68,7 @@ func messageCreate2(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 		}
 		//fmt.Printf("sortie: %s\n",ts.content)
 		//_, e := scrollMessage(&ts, s, m.Message.ID, m.ChannelID)
-		max := entireLine(ts.content, maxScrollLength)
+		max := lastLineJump(ts.content, maxScrollLength)
 		msg, e := s.ChannelMessageSend(m.ChannelID, "```"+ts.content[:max]+"```")
 		ts.posLow = 0
 		ts.posHigh = max
@@ -88,19 +88,21 @@ func messageCreate2(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 }
 
 func scrollMessageDown(t TextScroll, s *discordgo.Session, messageId string, channelId string) (*discordgo.Message, error) {
-	max := len(t.content)
-	if max < maxScrollLength {
+	if len(t.content) < maxScrollLength {
+		return nil, nil
+	}
+	if t.posHigh == len(t.content)-1 {
 		return nil, nil
 	}
 	min := t.posHigh + 1
-	mid := t.posHigh + maxScrollLength
-	if mid > max {
-		mid = max
+	sup := t.posHigh + maxScrollLength
+	if sup > len(t.content) {
+		sup = len(t.content) - 1
+	} else {
+		sup = min + lastLineJump(t.content[min:], maxScrollLength)
 	}
-	viewLength := entireLine(t.content[min:], maxScrollLength)
-	sup := min + viewLength
 
-	fmt.Printf("min: %d, mid: %d, max: %d, len)%d\n", min, sup, max, viewLength)
+	fmt.Printf("min: %d, mid: %d, max: %d, len)%d\n", min, sup, len(t.content), sup-min)
 	//fmt.Printf("content: %s\n", t.content[min:sup])
 
 	t.posLow = min
@@ -120,26 +122,26 @@ func scroll(s *discordgo.Session, e *discordgo.MessageReaction) {
 	if e.UserID == s.State.User.ID {
 		return
 	}
-	fmt.Printf("nom: %s id: %s\n", e.Emoji.Name, e.Emoji.ID)
 	ts, ok := trackedScrollText[e.MessageID]
 	if ok {
 		if e.Emoji.Name == emojiUp {
 		}
 		if e.Emoji.Name == emojiDown {
-			println("inc")
 			trackedScrollText[e.MessageID] = ts
 			_, err := scrollMessageDown(ts, s, e.MessageID, e.ChannelID)
 			he(err)
+			return
 		}
 	} else {
 		println("not ok")
 	}
+	fmt.Printf("nom: %s id: %s\n", e.Emoji.Name, e.Emoji.ID)
 }
 
 /*
 en failt ça doit s'arrêter un saut avant la fin
 */
-func entireLine(bigString string, max int) int {
+func lastLineJump(bigString string, max int) int {
 	end := 0
 	lineJumpIndex := 0
 	for end < max {
