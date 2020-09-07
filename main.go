@@ -51,7 +51,6 @@ func init() {
 	pwdChannels = make(map[string]string)
 }
 func main() {
-
 	//nouvelle session
 	sess, err := discordgo.New("Bot " + os.Getenv("BOT_TOKEN"))
 	if err != nil {

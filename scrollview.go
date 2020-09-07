@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"os/exec"
+	"strings"
 )
 
-const maxScrollLength = 100
+const maxScrollLength = 300
 
 const emojiUp = "⬆️"
 const emojiDown = "⬇️"
@@ -35,9 +36,9 @@ func messageCreate2(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 		var e error
 		var msg *discordgo.Message
 		if len(ts.content) < maxScrollLength {
-			msg, e = s.ChannelMessageSend(m.ChannelID, ts.content)
+			msg, e = s.ChannelMessageSend(m.ChannelID, "```"+ts.content+"```")
 		} else {
-			msg, e = s.ChannelMessageSend(m.ChannelID, ts.content[:maxScrollLength])
+			msg, e = s.ChannelMessageSend(m.ChannelID, "```"+ts.content[:maxScrollLength]+"```")
 		}
 		if e != nil {
 			fmt.Errorf("%s", e)
@@ -64,9 +65,11 @@ func scrollMessage(t TextScroll, s *discordgo.Session, messageId string, channel
 	if mid > max {
 		mid = max
 	}
-	fmt.Printf("min: %d, mid: %d, max: %d\n", min, mid, max)
-	fmt.Printf("content: %s\n", t.content[min:mid])
-	return s.ChannelMessageEdit(channelId, messageId, t.content[min:mid])
+	inf := entireLine(t.content[min:], mid)
+
+	fmt.Printf("min: %d, mid: %d, max: %d\n", min, inf, max)
+	//fmt.Printf("content: %s\n", t.content[min:inf])
+	return s.ChannelMessageEdit(channelId, messageId, "```"+t.content[min:inf]+"```")
 }
 
 func messageReactionAdd(s *discordgo.Session, e *discordgo.MessageReactionAdd) {
@@ -102,4 +105,16 @@ func scroll(s *discordgo.Session, e *discordgo.MessageReaction) {
 	} else {
 		println("not ok")
 	}
+}
+
+func entireLine(bigString string, max int) int {
+	end := 0
+	lineJumpIndex := 0
+	for end < max && lineJumpIndex >= 0 {
+		lineJumpIndex = strings.Index(bigString[end:], "\n")
+		if lineJumpIndex > 0 {
+			end += lineJumpIndex + 1
+		}
+	}
+	return end
 }
