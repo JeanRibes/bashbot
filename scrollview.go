@@ -63,21 +63,7 @@ func messageCreate2(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 		/*t, err := exec.Command("cat", "/Users/jean/Documents/INSA/LaTeX-template/cr.tex").CombinedOutput()
 		he(err)*/
 
-		ts := TextScroll{
-			content: loremIpsum,
-		}
-		//fmt.Printf("sortie: %s\n",ts.content)
-		//_, e := scrollMessage(&ts, s, m.Message.ID, m.ChannelID)
-		max := lastLineJump(ts.content, maxScrollLength)
-		msg, e := s.ChannelMessageSend(m.ChannelID, "```"+ts.content[:max]+"```")
-		ts.posLow = 0
-		ts.posHigh = max
-		if e != nil {
-			fmt.Errorf("%s", e)
-		}
-		trackedScrollText[msg.ID] = ts //l'ID du message qu'on a émis
-		s.MessageReactionAdd(m.ChannelID, msg.ID, emojiUp)
-		s.MessageReactionAdd(m.ChannelID, msg.ID, emojiDown)
+		createScroll(s, m, loremIpsum)
 		return true
 	}
 	if m.Content == "d" {
@@ -85,6 +71,24 @@ func messageCreate2(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 		return true
 	}
 	return false
+}
+
+func createScroll(s *discordgo.Session, m *discordgo.MessageCreate, content string) {
+	ts := TextScroll{
+		content: content,
+	}
+	//fmt.Printf("sortie: %s\n",ts.content)
+	//_, e := scrollMessage(&ts, s, m.Message.ID, m.ChannelID)
+	max := lastLineJump(ts.content, maxScrollLength)
+	msg, e := s.ChannelMessageSend(m.ChannelID, "```"+ts.content[:max]+"```")
+	ts.posLow = 0
+	ts.posHigh = max
+	if e != nil {
+		fmt.Printf("%s", e)
+	}
+	trackedScrollText[msg.ID] = ts //l'ID du message qu'on a émis
+	//s.MessageReactionAdd(m.ChannelID, msg.ID, emojiUp)
+	he(s.MessageReactionAdd(m.ChannelID, msg.ID, emojiDown))
 }
 
 func scrollMessageDown(t TextScroll, s *discordgo.Session, messageId string, channelId string) (*discordgo.Message, error) {

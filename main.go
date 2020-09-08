@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"os/user"
 	"strings"
@@ -12,10 +11,6 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 )
-
-var commandResultIDs map[string]string
-
-var pwdChannels map[string]string
 
 var emojis = map[int32]string{
 	'a': "🇦",
@@ -46,10 +41,6 @@ var emojis = map[int32]string{
 	'z': "🇿",
 }
 
-func init() {
-	commandResultIDs = make(map[string]string)
-	pwdChannels = make(map[string]string)
-}
 func main() {
 	//nouvelle session
 	//println(lastLineJump("123456789\n123456\n7891654", 20))
@@ -94,7 +85,6 @@ func main() {
 			}
 		})
 	})
-	sess.AddHandler(messageUpdate)
 
 	sess.AddHandler(func(s *discordgo.Session, e *discordgo.GuildDelete) {
 		println("guild delete")
@@ -133,25 +123,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	if m.Content[0] == '$' && m.Content[1] == ' ' {
-		fmt.Printf("%s : %s", m.Author.Username, m.Message.Content)
-		text := execCmd(m.Message)
-		if len(text) < 2000 {
-			s.ChannelMessageSend(m.ChannelID, "```shell\n"+text+"```")
-			return
-		}
-		curs := 0
-		nextCurs := 1000
-		for curs < len(text) {
-			_, err := s.ChannelMessageSend(m.ChannelID, "```shell\n"+text[curs:nextCurs]+"```")
-			he(err)
-			curs = nextCurs
-			if len(text)-curs < 2000 {
-				nextCurs = len(text)
-			} else {
-				nextCurs += 1000
-			}
-			time.Sleep(1 * time.Second)
-		}
+		handleBash(s, m)
 	}
 	if amImentionned(s, m.Message) {
 		s.ChannelMessageSend(m.ChannelID, "Bonjour, je suis BashBot.\n"+
@@ -161,6 +133,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 	fmt.Printf("message #%s: %s", m.ID, m.Content)
+
+	if len(m.Content) < 3 {
+		return
+	}
 
 	if m.Content[:3] == "_t " { //réagit avec les emojis du message
 		for _, lettre := range m.Content[3:] {
@@ -196,7 +172,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 }
-func execCmd(m *discordgo.Message) string {
+
+/*func execCmd(m *discordgo.Message) string {
 	if _, exists := pwdChannels[m.ChannelID]; exists {
 
 	} else {
@@ -211,21 +188,7 @@ func execCmd(m *discordgo.Message) string {
 	comb := strings.Split(string(out), "uu")
 	pwdChannels[m.ChannelID] = comb[1]
 	return prompt(pwdChannels[m.ChannelID]) + formatinput(m.Content[2:]) + "\n" + comb[0]
-}
-
-// quand un message est modifié
-func messageUpdate(s *discordgo.Session, m *discordgo.MessageUpdate) {
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-
-	if resultID, exists := commandResultIDs[m.ID]; exists {
-		_, err := s.ChannelMessageEdit(m.ChannelID, resultID, execCmd(m.Message))
-		he(err)
-	} else {
-		fmt.Printf("message %s unrealted\n", m.ID)
-	}
-}
+}*/
 
 func prompt(wd string) string {
 	user, ue := user.Current()
@@ -243,8 +206,8 @@ func he(err error) {
 	}
 }
 func amImentionned(s *discordgo.Session, m *discordgo.Message) bool {
-	for _, user := range m.Mentions {
-		if user.Bot && user.ID == s.State.User.ID {
+	for _, username := range m.Mentions {
+		if username.Bot && username.ID == s.State.User.ID {
 			return true
 		}
 	}
