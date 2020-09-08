@@ -10,6 +10,9 @@ COPY go.sum bashbot
 RUN cd bashbot && go mod tidy
 
 COPY main.go bashbot
+COPY bash.go bashbot
+COPY utils.go bashbot
+COPY scrollview.go bashbot
 
 # build Go
 #RUN CGO_ENABLED=0 GOOS=linux cd bashbot && go build -a -installsuffix cgo -o main main.go
