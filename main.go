@@ -134,7 +134,21 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	fmt.Printf("message #%s: %s", m.ID, m.Content)
 
+	bash(s, m)
+	if m.Content == "b" {
+		msg := ""
+		for _, bu := range bashed {
+			msg += GetNickName(s, bu.ID, m.GuildID) + " "
+		}
+		s.ChannelMessageSend(m.ChannelID, msg)
+		println("bashed: " + msg)
+	}
 	if len(m.Content) < 3 {
+		return
+	}
+
+	if m.Content[:3] == "_b " {
+		addBash(s, m)
 		return
 	}
 
@@ -202,7 +216,7 @@ func formatinput(in string) string {
 }
 func he(err error) {
 	if err != nil {
-		panic(err)
+		fmt.Print(err)
 	}
 }
 func amImentionned(s *discordgo.Session, m *discordgo.Message) bool {

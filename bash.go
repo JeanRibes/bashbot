@@ -6,6 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"io"
 	"os/exec"
+	"time"
 )
 
 type ChannelCommand struct {
@@ -41,8 +42,8 @@ func handleBash(s *discordgo.Session, m *discordgo.MessageCreate) {
 		newCC.stdout = bufio.NewReader(stdout)
 		he(newCC.process.Start())
 		commandsChannels[m.ChannelID] = newCC
+		newCC.Input("cd /tmp\n")
 	}
-
 	cc := commandsChannels[m.ChannelID]
 	cc.Input(m.Content[2:])
 
@@ -55,4 +56,28 @@ func handleBash(s *discordgo.Session, m *discordgo.MessageCreate) {
 		//}
 	}
 	createScroll(s, m, out) // dans le futur il faudrait update le message au cours de l'exécution du script
+}
+
+var bashed []*discordgo.User
+
+func addBash(s *discordgo.Session, m *discordgo.MessageCreate) {
+	fmt.Printf("%v+", m.Mentions)
+	bashed = append(bashed, m.Mentions...)
+}
+
+/*
+:troll_face:
+*/
+func bash(s *discordgo.Session, m *discordgo.MessageCreate) {
+	for _, user := range bashed {
+		if user.ID == m.Author.ID {
+			for _, lettre := range "osef" {
+				emoji, ok := emojis[lettre]
+				if ok {
+					s.MessageReactionAdd(m.ChannelID, m.ID, emoji)
+					time.Sleep(time.Millisecond * 100)
+				}
+			}
+		}
+	}
 }
