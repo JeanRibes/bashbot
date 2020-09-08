@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const maxScrollLength = 1000
+const maxScrollLength = 500
 
 const loremIpsum = `
 1 Salut 

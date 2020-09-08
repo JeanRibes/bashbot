@@ -6,7 +6,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"io"
 	"os/exec"
-	"strings"
 )
 
 type ChannelCommand struct {
@@ -16,7 +15,7 @@ type ChannelCommand struct {
 }
 
 func (cc *ChannelCommand) Input(s string) {
-	_, err := cc.stdin.Write([]byte(s + "\necho '@@\x03'\n"))
+	_, err := cc.stdin.Write([]byte(s + "\necho '\x03'\n"))
 	he(err)
 }
 func (cc *ChannelCommand) GetOutput() string {
@@ -48,12 +47,12 @@ func handleBash(s *discordgo.Session, m *discordgo.MessageCreate) {
 	cc.Input(m.Content[2:])
 
 	out := cc.GetOutput()
-	fmt.Printf("sortie: %s\n", out)
+	fmt.Printf("\n\n\n\nsortie: %s\n", out)
 	if len(out) < maxScrollLength {
-		if strings.Count(out, "\n") < 10 {
-			s.ChannelMessageSend(m.ChannelID, "```"+out+"```")
-			return
-		}
+		//if strings.Count(out, "\n") < 10 {
+		s.ChannelMessageSend(m.ChannelID, "```"+out+"```")
+		return
+		//}
 	}
 	createScroll(s, m, out) // dans le futur il faudrait update le message au cours de l'exécution du script
 }
