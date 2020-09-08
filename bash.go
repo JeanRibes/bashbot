@@ -36,13 +36,16 @@ func handleBash(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if _, ok := commandsChannels[m.ChannelID]; !ok {
 		var newCC ChannelCommand
 		newCC.process = exec.Command("bash")
+		newCC.process.Env = []string{
+			"USER=bashbot",
+			"PWD=/tmp",
+		}
 
 		newCC.stdin, _ = newCC.process.StdinPipe()
 		stdout, _ := newCC.process.StdoutPipe()
 		newCC.stdout = bufio.NewReader(stdout)
 		he(newCC.process.Start())
 		commandsChannels[m.ChannelID] = newCC
-		newCC.Input("cd /tmp\n")
 	}
 	cc := commandsChannels[m.ChannelID]
 	cc.Input(m.Content[2:])
