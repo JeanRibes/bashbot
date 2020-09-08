@@ -41,6 +41,8 @@ var emojis = map[int32]string{
 	'z': "🇿",
 }
 
+const deleteEmoji string = "❌"
+
 func main() {
 	//nouvelle session
 	//println(lastLineJump("123456789\n123456\n7891654", 20))

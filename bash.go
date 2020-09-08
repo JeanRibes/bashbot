@@ -54,7 +54,10 @@ func handleBash(s *discordgo.Session, m *discordgo.MessageCreate) {
 	fmt.Printf("\n\n\n\nsortie: %s\n", out)
 	if len(out) < maxScrollLength {
 		//if strings.Count(out, "\n") < 10 {
-		s.ChannelMessageSend(m.ChannelID, "```"+out+"```")
+		nmsg, serr := s.ChannelMessageSend(m.ChannelID, "```"+out+"```")
+		if serr == nil {
+			s.MessageReactionAdd(m.ChannelID, nmsg.ID, deleteEmoji)
+		}
 		return
 		//}
 	}
