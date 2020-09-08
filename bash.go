@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+var userMessageMap map[string]string //stocke les relations entre la personne qui a inité la commande
+// et les résultats dans le chat. sert à éviter que n'importe qui fasse supprimer les réulstats
+
 type ChannelCommand struct {
 	process *exec.Cmd
 	stdin   io.WriteCloser
@@ -29,6 +32,7 @@ var commandsChannels = map[string]ChannelCommand{}
 
 func init() {
 	commandsChannels = make(map[string]ChannelCommand)
+	userMessageMap = map[string]string{}
 }
 func handleBash(s *discordgo.Session, m *discordgo.MessageCreate) {
 	fmt.Printf("%s : %s\n", m.Author.Username, m.Message.Content)
@@ -57,6 +61,7 @@ func handleBash(s *discordgo.Session, m *discordgo.MessageCreate) {
 		nmsg, serr := s.ChannelMessageSend(m.ChannelID, "```"+out+"```")
 		if serr == nil {
 			s.MessageReactionAdd(m.ChannelID, nmsg.ID, deleteEmoji)
+			userMessageMap[nmsg.ID] = m.Author.ID
 		}
 		return
 		//}

@@ -104,6 +104,7 @@ func createScroll(s *discordgo.Session, m *discordgo.MessageCreate, content stri
 	he(s.MessageReactionAdd(m.ChannelID, msg.ID, emojiDown))
 	s.MessageReactionAdd(m.ChannelID, msg.ID, deleteEmoji)
 
+	userMessageMap[msg.ID] = m.Author.ID
 }
 
 func scrollMessageDown(t TextScroll, s *discordgo.Session, messageId string, channelId string) (*discordgo.Message, error) {
@@ -171,7 +172,11 @@ func scroll(s *discordgo.Session, e *discordgo.MessageReaction) {
 		return
 	}
 	if e.Emoji.Name == deleteEmoji {
-		s.ChannelMessageDelete(e.ChannelID, e.MessageID)
+		if ogUserId, ok := userMessageMap[e.MessageID]; ok {
+			if ogUserId == e.UserID {
+				s.ChannelMessageDelete(e.ChannelID, e.MessageID)
+			}
+		}
 	}
 	ts, ok := trackedScrollText[e.MessageID]
 	if ok {
