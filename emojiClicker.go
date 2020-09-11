@@ -69,15 +69,16 @@ func (game *EmojiClickerGame) toString() string {
 func reverseToString(str string) (clics int, level int) {
 	clics = -1
 	level = 0
-	fmt.Sscanf(str, "%d clics !", &clics, &level)
+	fmt.Sscanf(str, "%d clics !\nniveau %d", &clics, &level)
 	return clics, level
 }
 
-func (game *EmojiClickerGame) AutoClickHandler() {
+func (game *EmojiClickerGame) AutoClickHandler(s *discordgo.Session, channelId string, messageId string) {
 	for {
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 2)
 		game.lock.Lock()
 		game.clics += (game.autoClickers) * game.multipliers
+		hde(s.ChannelMessageEdit(channelId, messageId, game.toString()))
 		fmt.Printf("auto clicking: %d clics, ac:%d,mul:%d\n", game.clics, game.autoClickers, game.multipliers)
 		game.lock.Unlock()
 	}
@@ -109,7 +110,7 @@ func emojiClicked(s *discordgo.Session, e *discordgo.MessageReaction) {
 			println(game.clics)
 			game.UserClick(progression[level])
 			println(game.clics)
-			s.ChannelMessageEdit(e.ChannelID, e.MessageID, game.toString())
+			// s.ChannelMessageEdit(e.ChannelID, e.MessageID, game.toString()) en fait la MaJ est faite dans le tick d'auto-click
 			if game.clics >= progression[game.level+1].threshold && game.level < maxProgression {
 				game.LevelUp()
 				s.MessageReactionAdd(e.ChannelID, e.MessageID, game.Level().emoji)
@@ -131,7 +132,7 @@ func newGame(s *discordgo.Session, e *discordgo.MessageCreate) {
 	he(err)
 	s.MessageReactionAdd(msg.ChannelID, msg.ID, "🍪")
 	trackedEmojiClickerGames[msg.ID] = &game
-	go game.AutoClickHandler()
+	go game.AutoClickHandler(s, msg.ChannelID, msg.ID)
 }
 
 func recoverGame(s *discordgo.Session, e *discordgo.MessageReaction) {
@@ -151,9 +152,9 @@ func recoverGame(s *discordgo.Session, e *discordgo.MessageReaction) {
 				}
 				game.RecoverStats()
 				trackedEmojiClickerGames[e.MessageID] = &game
-				println("recovered")
+				fmt.Printf("recovered with level %d\n", level)
 				emojiClicked(s, e)
-				go game.AutoClickHandler()
+				go game.AutoClickHandler(s, e.ChannelID, e.MessageID)
 			}
 		}
 	}
