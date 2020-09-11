@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"os/user"
 	"strings"
 	"syscall"
 	"time"
@@ -108,7 +107,7 @@ func main() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 
-	sess.Close()
+	he(sess.Close())
 }
 
 // à chaque message que le bot peut voir (n'impore quel channel)
@@ -124,14 +123,19 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	if m.Content == "_ec" {
+		newGame(s, m)
+		return
+	}
+
 	if m.Content[0] == '$' && m.Content[1] == ' ' {
 		handleBash(s, m)
 	}
 	if amImentionned(s, m.Message) {
-		s.ChannelMessageSend(m.ChannelID, "Bonjour, je suis BashBot.\n"+
+		hde(s.ChannelMessageSend(m.ChannelID, "Bonjour, je suis BashBot.\n"+
 			"J'exécute les commandes qu'on me donne, préfixées de '$ ' \n"+
-			"Attention: les variables d'environnement ne persistent pas entre les messages\n"+
-			"Exemple: ``$ echo 'hello world'``")
+			"Exemple: ``$ echo 'hello world'``\n"+
+			"\nJe dispose aussi d'autres fonctionnalités, comme un Cookie Clicker. envoie `_ec` pour lancer le jeu"))
 		return
 	}
 	fmt.Printf("message #%s: %s", m.ID, m.Content)
@@ -159,7 +163,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			emoji, ok := emojis[lettre]
 			if ok {
 				s.MessageReactionAdd(m.ChannelID, m.ID, emoji)
-				time.Sleep(time.Millisecond * 100)
+				time.Sleep(time.Millisecond * 1000)
 			}
 		}
 		return
@@ -206,28 +210,43 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	return prompt(pwdChannels[m.ChannelID]) + formatinput(m.Content[2:]) + "\n" + comb[0]
 }*/
 
-func prompt(wd string) string {
-	user, ue := user.Current()
-	he(ue)
-	hostname, herr := os.Hostname()
-	he(herr)
-	return user.Username + "@" + hostname + ":" + wd + "$ "
+func messageReactionAdd(s *discordgo.Session, e *discordgo.MessageReactionAdd) {
+	messageReactionAddOrRemove(s, e.MessageReaction)
 }
-func formatinput(in string) string {
-	return strings.ReplaceAll(in, "\n", " ; ")
+func messageReactionRemove(s *discordgo.Session, e *discordgo.MessageReactionRemove) {
+	messageReactionAddOrRemove(s, e.MessageReaction)
 }
-func he(err error) {
-	if err != nil {
-		fmt.Print(err)
+
+func messageReactionAddOrRemove(s *discordgo.Session, e *discordgo.MessageReaction) {
+	if e.UserID == s.State.User.ID {
+		return
 	}
-}
-func amImentionned(s *discordgo.Session, m *discordgo.Message) bool {
-	for _, username := range m.Mentions {
-		if username.Bot && username.ID == s.State.User.ID {
-			return true
+	if e.Emoji.Name == deleteEmoji {
+		if ogUserId, ok := userMessageMap[e.MessageID]; ok {
+			if ogUserId == e.UserID {
+				s.ChannelMessageDelete(e.ChannelID, e.MessageID)
+			}
 		}
 	}
-	return false
+	ts, ok := trackedScrollText[e.MessageID] //dans scrollview.go
+	if ok {
+		if e.Emoji.Name == emojiUp {
+			_, err := scrollMessageUp(ts, s, e.MessageID, e.ChannelID)
+			he(err)
+			return
+		}
+		if e.Emoji.Name == emojiDown {
+			_, err := scrollMessageDown(ts, s, e.MessageID, e.ChannelID)
+			he(err)
+			return
+		}
+	}
+	if _, exists := trackedEmojiClickerGames[e.MessageID]; exists {
+		emojiClicked(s, e)
+		return
+	}
+	recoverGame(s, e)
+	fmt.Printf("nom: %s id: %s\n", e.Emoji.Name, e.Emoji.ID)
 }
 
 func guildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {

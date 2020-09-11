@@ -80,7 +80,7 @@ func messageCreate2(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 		return true
 	}
 	if m.Content == "d" {
-		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%d tracked scrolls", len(trackedScrollText)))
+		hde(s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%d tracked scrolls", len(trackedScrollText))))
 		return true
 	}
 	return false
@@ -100,9 +100,9 @@ func createScroll(s *discordgo.Session, m *discordgo.MessageCreate, content stri
 		fmt.Printf("%s", e)
 	}
 	trackedScrollText[msg.ID] = ts //l'ID du message qu'on a émis
-	s.MessageReactionAdd(m.ChannelID, msg.ID, emojiUp)
+	he(s.MessageReactionAdd(m.ChannelID, msg.ID, emojiUp))
 	he(s.MessageReactionAdd(m.ChannelID, msg.ID, emojiDown))
-	s.MessageReactionAdd(m.ChannelID, msg.ID, deleteEmoji)
+	he(s.MessageReactionAdd(m.ChannelID, msg.ID, deleteEmoji))
 
 	userMessageMap[msg.ID] = m.Author.ID
 }
@@ -158,42 +158,6 @@ func scrollMessageUp(t TextScroll, s *discordgo.Session, messageId string, chann
 	t.posHigh = sup
 	trackedScrollText[messageId] = t
 	return s.ChannelMessageEdit(channelId, messageId, "```"+t.content[inf:sup]+"```")
-}
-
-func messageReactionAdd(s *discordgo.Session, e *discordgo.MessageReactionAdd) {
-	scroll(s, e.MessageReaction)
-}
-func messageReactionRemove(s *discordgo.Session, e *discordgo.MessageReactionRemove) {
-	scroll(s, e.MessageReaction)
-}
-
-func scroll(s *discordgo.Session, e *discordgo.MessageReaction) {
-	if e.UserID == s.State.User.ID {
-		return
-	}
-	if e.Emoji.Name == deleteEmoji {
-		if ogUserId, ok := userMessageMap[e.MessageID]; ok {
-			if ogUserId == e.UserID {
-				s.ChannelMessageDelete(e.ChannelID, e.MessageID)
-			}
-		}
-	}
-	ts, ok := trackedScrollText[e.MessageID]
-	if ok {
-		if e.Emoji.Name == emojiUp {
-			_, err := scrollMessageUp(ts, s, e.MessageID, e.ChannelID)
-			he(err)
-			return
-		}
-		if e.Emoji.Name == emojiDown {
-			_, err := scrollMessageDown(ts, s, e.MessageID, e.ChannelID)
-			he(err)
-			return
-		}
-	} else {
-		println("not ok")
-	}
-	fmt.Printf("nom: %s id: %s\n", e.Emoji.Name, e.Emoji.ID)
 }
 
 /*

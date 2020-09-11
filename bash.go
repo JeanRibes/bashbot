@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"io"
+	"os"
 	"os/exec"
+	"os/user"
+	"strings"
 	"time"
 )
 
@@ -85,10 +88,21 @@ func bash(s *discordgo.Session, m *discordgo.MessageCreate) {
 			for _, lettre := range "osef" {
 				emoji, ok := emojis[lettre]
 				if ok {
-					s.MessageReactionAdd(m.ChannelID, m.ID, emoji)
+					he(s.MessageReactionAdd(m.ChannelID, m.ID, emoji))
 					time.Sleep(time.Millisecond * 100)
 				}
 			}
 		}
 	}
+}
+
+func prompt(wd string) string {
+	user, ue := user.Current()
+	he(ue)
+	hostname, herr := os.Hostname()
+	he(herr)
+	return user.Username + "@" + hostname + ":" + wd + "$ "
+}
+func formatinput(in string) string {
+	return strings.ReplaceAll(in, "\n", " ; ")
 }
