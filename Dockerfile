@@ -13,10 +13,11 @@ COPY main.go bashbot
 COPY bash.go bashbot
 COPY utils.go bashbot
 COPY scrollview.go bashbot
+COPY emojiClicker.go bashbot
 
 # build Go
 #RUN CGO_ENABLED=0 GOOS=linux cd bashbot && go build -a -installsuffix cgo -o main main.go
-RUN cd bashbot && go build  -o main main.go utils.go bash.go scrollview.go
+RUN cd bashbot && go build -o main
 # j'utilise ubuntu et pas alpine pour avoir plus de commande shell par défaut
 RUN apt-get install ca-certificates && update-ca-certificates
 
