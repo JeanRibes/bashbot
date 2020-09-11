@@ -3,76 +3,135 @@ package main
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"sync"
+	"time"
 )
 
-var trackedEmojiClickerGames map[string]EmojiClickerGame
+var trackedEmojiClickerGames map[string]*EmojiClickerGame
 
-var progression map[string]int
+var progression []EmojiClickerProgression
+var emojiMap map[string]int
+var maxProgression int
 
 type EmojiClickerGame struct {
-	//user  discordgo.User
-	clics int
+	clics        int
+	multipliers  int
+	autoClickers int
+	lock         sync.Mutex
+	level        int
 }
-
-func (ecg *EmojiClickerGame) toString() string {
-	return fmt.Sprintf("%d clics !", ecg.clics)
-}
-func reverseToString(str string) int {
-	clics := 0
-	fmt.Sscanf(str, "%d clics !", &clics)
-	//he(err)
-	return clics
+type EmojiClickerProgression struct {
+	threshold    int // le seuil de clics à atteindre pour débloquer
+	multiplier   int
+	autoClickers int
+	emoji        string
 }
 
 func init() {
-	trackedEmojiClickerGames = map[string]EmojiClickerGame{}
-	progression = map[string]int{
-		"🖱":  1,
-		"🕹️": 2,
-		"⚙️": 5,
-		"🏭":  10,
-		"🏙️": 50,
-		"🇩🇪": 200,
-		"🚀":  10000,
+	trackedEmojiClickerGames = map[string]*EmojiClickerGame{}
+	progression = []EmojiClickerProgression{
+		ecp(0, 1, 0),
+		ecp(10, 2, 0),
+		ecp(100, 2, 1),
+		ecp(1000, 5, 2),
+		ecp(2000, 10, 5),
+		ecp(10000, 10, 10),
+		ecp(100000, 100, 10),
+		ecp(500000, 100, 100),
 	}
+
+	emojiMap = map[string]int{
+		"🍪":  0,
+		"🍰":  1,
+		"🖱":  2,
+		"🕹️": 3,
+		"⚙️": 4,
+		"🏭":  5,
+		"🏙️": 6,
+		"🇩🇪": 7,
+	}
+	for emoji, level := range emojiMap {
+		progression[level].emoji = emoji
+	}
+
+	maxProgression = len(progression)
+}
+func ecp(seuil int, multiplieur int, autoClickers int) EmojiClickerProgression {
+	return EmojiClickerProgression{
+		threshold:    seuil,
+		multiplier:   multiplieur,
+		autoClickers: autoClickers,
+	}
+}
+func (game *EmojiClickerGame) toString() string {
+	return fmt.Sprintf("%d clics !\nniveau %d", game.clics, game.level)
+}
+func reverseToString(str string) (clics int, level int) {
+	clics = -1
+	level = 0
+	fmt.Sscanf(str, "%d clics !", &clics, &level)
+	return clics, level
+}
+
+func (game *EmojiClickerGame) AutoClickHandler() {
+	for {
+		time.Sleep(time.Second * 1)
+		game.lock.Lock()
+		game.clics += (game.autoClickers) * game.multipliers
+		fmt.Printf("auto clicking: %d clics, ac:%d,mul:%d\n", game.clics, game.autoClickers, game.multipliers)
+		game.lock.Unlock()
+	}
+}
+func (game *EmojiClickerGame) UserClick(level EmojiClickerProgression) {
+	game.lock.Lock()
+	game.clics += level.multiplier
+	game.lock.Unlock()
+}
+
+func (game *EmojiClickerGame) LevelUp() {
+	game.level += 1
+	level := progression[game.level]
+	game.autoClickers += level.autoClickers
+	game.multipliers += level.autoClickers
+}
+func (game *EmojiClickerGame) Level() *EmojiClickerProgression {
+	return &progression[game.level]
 }
 
 /**
 
  */
 func emojiClicked(s *discordgo.Session, e *discordgo.MessageReaction) {
-	emojiGame := trackedEmojiClickerGames[e.MessageID]
-	if /*e.UserID == emojiGame.user.ID*/ true {
-		// comptages des clics
-		inc := progression[e.Emoji.Name]
-		if emojiGame.clics >= inc { //anto-cheat
-			emojiGame.clics += inc
-			fmt.Printf("incrementing with %d\n", inc)
-		} else {
-			fmt.Print("%s cheated with %s\n", e.UserID, e.Emoji.Name)
-		}
-		// feedback user
-		trackedEmojiClickerGames[e.MessageID] = emojiGame
-		s.ChannelMessageEdit(e.ChannelID, e.MessageID, emojiGame.toString())
+	game := trackedEmojiClickerGames[e.MessageID]
 
-		// progression
-		for emoji, increment := range progression {
-			if emojiGame.clics > increment {
-				s.MessageReactionAdd(e.ChannelID, e.MessageID, emoji)
+	if level, ok := emojiMap[e.Emoji.Name]; ok {
+		if level <= game.level {
+			println(game.clics)
+			game.UserClick(progression[level])
+			println(game.clics)
+			s.ChannelMessageEdit(e.ChannelID, e.MessageID, game.toString())
+			if game.clics >= progression[game.level+1].threshold && game.level < maxProgression {
+				game.LevelUp()
+				s.MessageReactionAdd(e.ChannelID, e.MessageID, game.Level().emoji)
 			}
 		}
 	}
+	return
 }
 
 func newGame(s *discordgo.Session, e *discordgo.MessageCreate) {
-	emojiGame := EmojiClickerGame{
-		//user:  *e.Author,
-		clics: 1,
+	game := EmojiClickerGame{
+		clics:        0,
+		autoClickers: 0,
+		multipliers:  1,
+		lock:         sync.Mutex{},
+		level:        0,
 	}
-	msg, err := s.ChannelMessageSend(e.ChannelID, emojiGame.toString())
+	msg, err := s.ChannelMessageSend(e.ChannelID, game.toString())
 	he(err)
-	s.MessageReactionAdd(msg.ChannelID, msg.ID, "🖱")
-	trackedEmojiClickerGames[msg.ID] = emojiGame
+	s.MessageReactionAdd(msg.ChannelID, msg.ID, "🍪")
+	trackedEmojiClickerGames[msg.ID] = &game
+	go game.AutoClickHandler()
 }
 
 func recoverGame(s *discordgo.Session, e *discordgo.MessageReaction) {
@@ -81,14 +140,28 @@ func recoverGame(s *discordgo.Session, e *discordgo.MessageReaction) {
 	if err == nil {
 
 		if msg.Author.ID == s.State.User.ID {
-			clics := reverseToString(msg.Content)
-			if clics > 0 {
-				trackedEmojiClickerGames[e.MessageID] = EmojiClickerGame{
-					clics: clics,
+			clics, level := reverseToString(msg.Content)
+			if clics >= 0 {
+				game := EmojiClickerGame{
+					clics:        clics,
+					autoClickers: 0,
+					multipliers:  1,
+					lock:         sync.Mutex{},
+					level:        level,
 				}
+				game.RecoverStats()
+				trackedEmojiClickerGames[e.MessageID] = &game
+				println("recovered")
 				emojiClicked(s, e)
+				go game.AutoClickHandler()
 			}
 		}
 	}
 	he(err)
+}
+func (game *EmojiClickerGame) RecoverStats() {
+	for _, level := range progression[:game.level] {
+		game.multipliers += level.multiplier
+		game.autoClickers += level.autoClickers
+	}
 }
