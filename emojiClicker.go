@@ -54,7 +54,7 @@ func init() {
 		progression[level].emoji = emoji
 	}
 
-	maxProgression = len(progression)
+	maxProgression = len(progression) - 1
 }
 func ecp(seuil int, multiplieur int, autoClickers int) EmojiClickerProgression {
 	return EmojiClickerProgression{
@@ -94,6 +94,7 @@ func (game *EmojiClickerGame) LevelUp() {
 	level := progression[game.level]
 	game.autoClickers += level.autoClickers
 	game.multipliers += level.autoClickers
+	game.clics = 0
 }
 func (game *EmojiClickerGame) Level() *EmojiClickerProgression {
 	return &progression[game.level]
@@ -111,9 +112,11 @@ func emojiClicked(s *discordgo.Session, e *discordgo.MessageReaction) {
 			game.UserClick(progression[level])
 			println(game.clics)
 			// s.ChannelMessageEdit(e.ChannelID, e.MessageID, game.toString()) en fait la MaJ est faite dans le tick d'auto-click
-			if game.clics >= progression[game.level+1].threshold && game.level < maxProgression {
-				game.LevelUp()
-				s.MessageReactionAdd(e.ChannelID, e.MessageID, game.Level().emoji)
+			if game.level < maxProgression {
+				if game.clics >= progression[game.level+1].threshold {
+					game.LevelUp()
+					s.MessageReactionAdd(e.ChannelID, e.MessageID, game.Level().emoji)
+				}
 			}
 		}
 	}
