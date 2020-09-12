@@ -128,6 +128,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	if m.Content == "_progression" {
+		s.ChannelMessageSend(m.ChannelID, ExplainProgression())
+	}
+
 	if m.Content[0] == '$' && m.Content[1] == ' ' {
 		handleBash(s, m)
 	}
@@ -135,7 +139,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		hde(s.ChannelMessageSend(m.ChannelID, "Bonjour, je suis BashBot.\n"+
 			"J'exécute les commandes qu'on me donne, préfixées de '$ ' \n"+
 			"Exemple: ``$ echo 'hello world'``\n"+
-			"\nJe dispose aussi d'autres fonctionnalités, comme un Cookie Clicker. envoie `_ec` pour lancer le jeu"))
+			"\nJe dispose aussi d'autres fonctionnalités, comme un Cookie Clicker. envoie `_ec` pour lancer le jeu et `_progression` pour voir les différents niveaux."))
 		return
 	}
 	fmt.Printf("message #%s: %s", m.ID, m.Content)

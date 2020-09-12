@@ -248,3 +248,15 @@ func (game *EmojiClickerGame) RecoverStats() {
 	}
 	fmt.Printf("%d autoclickers\n", game.autoClickers)
 }
+
+func ExplainProgression() (s string) {
+	s = ""
+	for i, level := range progression {
+		s += fmt.Sprintf("Niveau %d: %s, x%d avec %d auto-cliqueurs; nécessite %d clics\n",
+			i, level.emoji,
+			level.multiplier,
+			level.autoClickers,
+			level.threshold)
+	}
+	return s
+}
