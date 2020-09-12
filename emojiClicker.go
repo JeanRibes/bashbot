@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"sync"
@@ -13,12 +14,15 @@ var progression []EmojiClickerProgression
 var emojiMap map[string]int
 var maxProgression int
 
+const refreshEmoji string = "🔄"
+
 type EmojiClickerGame struct {
 	clics        int
 	multipliers  int
 	autoClickers int
 	lock         sync.Mutex
 	level        int
+	closeLoop    context.CancelFunc
 }
 type EmojiClickerProgression struct {
 	threshold    int // le seuil de clics à atteindre pour débloquer
@@ -73,14 +77,20 @@ func reverseToString(str string) (clics int, level int) {
 	return clics, level
 }
 
-func (game *EmojiClickerGame) AutoClickHandler(s *discordgo.Session, channelId string, messageId string) {
+func (game *EmojiClickerGame) AutoClickHandler(s *discordgo.Session, channelId string, messageId string, ctx context.Context) {
 	for {
+		select {
+		case <-ctx.Done(): // if cancel() execute
+			println("quitting")
+			return
+		default:
+			game.lock.Lock()
+			game.clics += (game.autoClickers) * game.multipliers
+			hde(s.ChannelMessageEdit(channelId, messageId, game.toString()))
+			fmt.Printf("auto clicking: %d clics, ac:%d,mul:%d\n", game.clics, game.autoClickers, game.multipliers)
+			game.lock.Unlock()
+		}
 		time.Sleep(time.Second * 2)
-		game.lock.Lock()
-		game.clics += (game.autoClickers) * game.multipliers
-		hde(s.ChannelMessageEdit(channelId, messageId, game.toString()))
-		fmt.Printf("auto clicking: %d clics, ac:%d,mul:%d\n", game.clics, game.autoClickers, game.multipliers)
-		game.lock.Unlock()
 	}
 }
 func (game *EmojiClickerGame) UserClick(level EmojiClickerProgression) {
@@ -106,11 +116,14 @@ func (game *EmojiClickerGame) Level() *EmojiClickerProgression {
 func emojiClicked(s *discordgo.Session, e *discordgo.MessageReaction) {
 	game := trackedEmojiClickerGames[e.MessageID]
 
+	if e.Emoji.Name == refreshEmoji {
+		repostGame(s, e, game)
+		return
+	}
+
 	if level, ok := emojiMap[e.Emoji.Name]; ok {
 		if level <= game.level {
-			println(game.clics)
 			game.UserClick(progression[level])
-			println(game.clics)
 			// s.ChannelMessageEdit(e.ChannelID, e.MessageID, game.toString()) en fait la MaJ est faite dans le tick d'auto-click
 			if game.level < maxProgression {
 				if game.clics >= progression[game.level+1].threshold {
@@ -123,41 +136,65 @@ func emojiClicked(s *discordgo.Session, e *discordgo.MessageReaction) {
 	return
 }
 
+func repostGame(s *discordgo.Session, e *discordgo.MessageReaction, game *EmojiClickerGame) {
+	s.ChannelMessageDelete(e.ChannelID, e.MessageID)
+	game.closeLoop()
+
+	delete(trackedEmojiClickerGames, e.MessageID)
+
+	var ctx context.Context
+	ctx, game.closeLoop = context.WithCancel(context.Background())
+	msg, _ := s.ChannelMessageSend(e.ChannelID, game.toString())
+	trackedEmojiClickerGames[msg.ID] = game
+	s.MessageReactionAdd(msg.ChannelID, msg.ID, refreshEmoji)
+
+	for _, level := range progression[:game.level+1] {
+		he(s.MessageReactionAdd(msg.ChannelID, msg.ID, level.emoji))
+		time.Sleep(time.Millisecond * 200)
+	}
+
+	go game.AutoClickHandler(s, msg.ChannelID, msg.ID, ctx)
+}
+
 func newGame(s *discordgo.Session, e *discordgo.MessageCreate) {
+	ctx, cancel := context.WithCancel(context.Background())
 	game := EmojiClickerGame{
 		clics:        0,
 		autoClickers: 0,
 		multipliers:  1,
 		lock:         sync.Mutex{},
 		level:        0,
+		closeLoop:    cancel,
 	}
 	msg, err := s.ChannelMessageSend(e.ChannelID, game.toString())
 	he(err)
 	s.MessageReactionAdd(msg.ChannelID, msg.ID, "🍪")
+	s.MessageReactionAdd(msg.ChannelID, msg.ID, refreshEmoji)
 	trackedEmojiClickerGames[msg.ID] = &game
-	go game.AutoClickHandler(s, msg.ChannelID, msg.ID)
+	go game.AutoClickHandler(s, msg.ChannelID, msg.ID, ctx)
 }
 
 func recoverGame(s *discordgo.Session, e *discordgo.MessageReaction) {
 
 	msg, err := s.ChannelMessage(e.ChannelID, e.MessageID)
 	if err == nil {
-
 		if msg.Author.ID == s.State.User.ID {
 			clics, level := reverseToString(msg.Content)
 			if clics >= 0 {
+				ctx, cancel := context.WithCancel(context.Background())
 				game := EmojiClickerGame{
 					clics:        clics,
 					autoClickers: 0,
 					multipliers:  1,
 					lock:         sync.Mutex{},
 					level:        level,
+					closeLoop:    cancel,
 				}
 				game.RecoverStats()
 				trackedEmojiClickerGames[e.MessageID] = &game
 				fmt.Printf("recovered with level %d\n", level)
 				emojiClicked(s, e)
-				go game.AutoClickHandler(s, e.ChannelID, e.MessageID)
+				go game.AutoClickHandler(s, msg.ChannelID, msg.ID, ctx)
 			}
 		}
 	}
