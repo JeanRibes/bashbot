@@ -111,9 +111,6 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, ExplainProgression())
 	}
 
-	if m.Content[0] == '$' && m.Content[1] == ' ' {
-		handleBash(s, m)
-	}
 	if amImentionned(s, m.Message) {
 		hde(s.ChannelMessageSend(m.ChannelID, "Bonjour, je suis BashBot.\n"+
 			"J'exécute les commandes qu'on me donne, préfixées de '$ ' \n"+
@@ -134,6 +131,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	if len(m.Content) < 3 {
 		return
+	}
+
+	if m.Content[0] == '$' && m.Content[1] == ' ' {
+		handleBash(s, m)
 	}
 
 	if m.Content[:3] == "_b " {
